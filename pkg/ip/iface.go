@@ -66,6 +66,7 @@ func GetInterfaceIP4Addr(iface *net.Interface) (net.IP, error) {
 	return nil, errors.New("No IPv4 address found for given interface")
 }
 
+// 获取网络接口的地址，然后匹配
 func GetInterfaceIP4AddrMatch(iface *net.Interface, matchAddr net.IP) error {
 	addrs, err := getIfaceAddrs(iface)
 	if err != nil {
@@ -103,6 +104,7 @@ func GetDefaultGatewayInterface() (*net.Interface, error) {
 	return nil, errors.New("Unable to find default route")
 }
 
+// 根据ip获取网络接口
 func GetInterfaceByIP(ip net.IP) (*net.Interface, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -110,6 +112,7 @@ func GetInterfaceByIP(ip net.IP) (*net.Interface, error) {
 	}
 
 	for _, iface := range ifaces {
+		// 匹配获取到接口
 		err := GetInterfaceIP4AddrMatch(&iface, ip)
 		if err == nil {
 			return &iface, nil

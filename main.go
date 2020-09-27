@@ -444,19 +444,21 @@ func MonitorLease(ctx context.Context, sm subnet.Manager, bn backend.Network, wg
 	}
 }
 
+// 搜索主机的网络接口
 func LookupExtIface(ifname string, ifregex string) (*backend.ExternalInterface, error) {
 	var iface *net.Interface
 	var ifaceAddr net.IP
 	var err error
 
 	if len(ifname) > 0 {
+		// 如果是ip
 		if ifaceAddr = net.ParseIP(ifname); ifaceAddr != nil {
 			log.Infof("Searching for interface using %s", ifaceAddr)
 			iface, err = ip.GetInterfaceByIP(ifaceAddr)
 			if err != nil {
 				return nil, fmt.Errorf("error looking up interface %s: %s", ifname, err)
 			}
-		} else {
+		} else { // 如果是网络接口名
 			iface, err = net.InterfaceByName(ifname)
 			if err != nil {
 				return nil, fmt.Errorf("error looking up interface %s: %s", ifname, err)
@@ -515,6 +517,7 @@ func LookupExtIface(ifname string, ifregex string) (*backend.ExternalInterface, 
 			return nil, fmt.Errorf("Could not match pattern %s to any of the available network interfaces (%s)", ifregex, strings.Join(availableFaces, ", "))
 		}
 	} else {
+		// 获取默认的网络接口
 		log.Info("Determining IP address of default interface")
 		if iface, err = ip.GetDefaultGatewayInterface(); err != nil {
 			return nil, fmt.Errorf("failed to get default interface: %s", err)
