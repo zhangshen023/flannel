@@ -129,6 +129,7 @@ func (be *VXLANBackend) RegisterNetwork(ctx context.Context, wg *sync.WaitGroup,
 		learning:  cfg.Learning,
 	}
 
+	// vxlan device
 	dev, err := newVXLANDevice(&devAttrs)
 	if err != nil {
 		return nil, err

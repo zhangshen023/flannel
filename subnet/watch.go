@@ -34,6 +34,7 @@ func WatchLeases(ctx context.Context, sm Manager, ownLease *Lease, receiver chan
 	var cursor interface{}
 
 	for {
+		// 获取节点的网络变化消息
 		res, err := sm.WatchLeases(ctx, cursor)
 		if err != nil {
 			if err == context.Canceled || err == context.DeadlineExceeded {

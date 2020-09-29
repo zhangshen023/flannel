@@ -60,7 +60,8 @@ type kubeSubnetManager struct {
 	nodeStore      listers.NodeLister
 	nodeController cache.Controller
 	subnetConf     *subnet.Config
-	events         chan subnet.Event
+	// 一个分配子网的消息或者删除一个子网的消息
+	events chan subnet.Event
 }
 
 func NewSubnetManager(apiUrl, kubeconfig, prefix, netConfPath string) (subnet.Manager, error) {
@@ -110,13 +111,15 @@ func NewSubnetManager(apiUrl, kubeconfig, prefix, netConfPath string) (subnet.Ma
 	if err != nil {
 		return nil, fmt.Errorf("error parsing subnet config: %s", err)
 	}
-
+	// 为节点创建子网管理器
 	sm, err := newKubeSubnetManager(c, sc, nodeName, prefix)
 	if err != nil {
 		return nil, fmt.Errorf("error creating network manager: %s", err)
 	}
+	// 运行子网管理器
 	go sm.Run(context.Background())
 
+	// 等待controller完成初始化
 	glog.Infof("Waiting %s for node controller to sync", nodeControllerSyncTimeout)
 	err = wait.Poll(time.Second, nodeControllerSyncTimeout, func() (bool, error) {
 		return sm.nodeController.HasSynced(), nil
@@ -141,6 +144,7 @@ func newKubeSubnetManager(c clientset.Interface, sc *subnet.Config, nodeName, pr
 	ksm.subnetConf = sc
 	ksm.events = make(chan subnet.Event, 5000)
 	indexer, controller := cache.NewIndexerInformer(
+		// 对node感兴趣，监听node状态，及时为node添加子网
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				return ksm.client.CoreV1().Nodes().List(options)
@@ -151,6 +155,7 @@ func newKubeSubnetManager(c clientset.Interface, sc *subnet.Config, nodeName, pr
 		},
 		&v1.Node{},
 		resyncPeriod,
+		// 从deltafifo队列中取出来调用该方法
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				ksm.handleAddLeaseEvent(subnet.EventAdded, obj)
@@ -276,11 +281,13 @@ func (ksm *kubeSubnetManager) AcquireLease(ctx context.Context, attrs *subnet.Le
 			return nil, fmt.Errorf("failed to create patch for node %q: %v", ksm.nodeName, err)
 		}
 
+		// 这里把新的网络提交给apiserver
 		_, err = ksm.client.CoreV1().Nodes().Patch(ksm.nodeName, types.StrategicMergePatchType, patchBytes, "status")
 		if err != nil {
 			return nil, err
 		}
 	}
+	// 开始调度节点的网络
 	err = ksm.setNodeNetworkUnavailableFalse()
 	if err != nil {
 		glog.Errorf("Unable to set NetworkUnavailable to False for %q: %v", ksm.nodeName, err)
@@ -308,6 +315,7 @@ func (ksm *kubeSubnetManager) Run(ctx context.Context) {
 	ksm.nodeController.Run(ctx.Done())
 }
 
+// 从node中获取到子网相关的信息
 func (ksm *kubeSubnetManager) nodeToLease(n v1.Node) (l subnet.Lease, err error) {
 	l.Attrs.PublicIP, err = ip.ParseIP4(n.Annotations[ksm.annotations.BackendPublicIP])
 	if err != nil {

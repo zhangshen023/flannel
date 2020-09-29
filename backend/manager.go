@@ -59,6 +59,7 @@ func (bm *manager) GetBackend(backendType string) (Backend, error) {
 	}
 
 	// first request, need to create and run it
+	// 如果是vxlan，那么befunc就是VXLANBackend
 	befunc, ok := constructors[betype]
 	if !ok {
 		return nil, fmt.Errorf("unknown backend type: %v", betype)

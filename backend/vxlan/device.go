@@ -115,6 +115,7 @@ func (dev *vxlanDevice) Configure(ipn ip.IP4Net) error {
 		return fmt.Errorf("failed to ensure address of interface %s: %s", dev.link.Attrs().Name, err)
 	}
 
+	// 启动该借口
 	if err := netlink.LinkSetUp(dev.link); err != nil {
 		return fmt.Errorf("failed to set interface %s to UP state: %s", dev.link.Attrs().Name, err)
 	}

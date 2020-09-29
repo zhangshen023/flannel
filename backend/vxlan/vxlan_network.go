@@ -70,6 +70,7 @@ func (nw *network) Run(ctx context.Context) {
 	for {
 		select {
 		case evtBatch := <-events:
+			// 处理变化的子网消息
 			nw.handleSubnetEvents(evtBatch)
 
 		case <-ctx.Done():

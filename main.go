@@ -291,6 +291,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 创建一个网络（vxlan_network）
 	bn, err := be.RegisterNetwork(ctx, &wg, config)
 	if err != nil {
 		log.Errorf("Error registering network: %s", err)
