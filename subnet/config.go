@@ -23,12 +23,18 @@ import (
 )
 
 type Config struct {
-	Network     ip.IP4Net
-	SubnetMin   ip.IP4
-	SubnetMax   ip.IP4
-	SubnetLen   uint
-	BackendType string          `json:"-"`
-	Backend     json.RawMessage `json:",omitempty"`
+	// 分配大的网络
+	Network ip.IP4Net
+	// 最小的子网
+	SubnetMin ip.IP4
+	// 最大的子网
+	SubnetMax ip.IP4
+	// 子网长度
+	SubnetLen uint
+	// udp vxlan
+	BackendType string `json:"-"`
+	// udp/vxlan
+	Backend json.RawMessage `json:",omitempty"`
 }
 
 func parseBackendType(be json.RawMessage) (string, error) {
@@ -60,6 +66,7 @@ func ParseConfig(s string) (*Config, error) {
 
 		// SubnetLen needs to fit _more_ than twice into the Network.
 		// the first subnet isn't used, so splitting into two one only provide one usable host.
+		//至少划分4个子网
 		if cfg.SubnetLen < cfg.Network.PrefixLen+2 {
 			return nil, errors.New("Network must be able to accommodate at least four subnets")
 		}

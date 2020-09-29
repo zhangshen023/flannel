@@ -20,6 +20,7 @@ import (
 	"strings"
 )
 
+// k8s的annotation
 type annotations struct {
 	SubnetKubeManaged        string
 	BackendData              string

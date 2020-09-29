@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-// +build !windows
 
 package network
 
@@ -82,6 +81,7 @@ func ForwardRules(flannelNetwork string) []IPTablesRule {
 	}
 }
 
+// 判断iptable规则存不存在
 func ipTablesRulesExist(ipt IPTables, rules []IPTablesRule) (bool, error) {
 	for _, rule := range rules {
 		exists, err := ipt.Exists(rule.table, rule.chain, rule.rulespec...)
@@ -106,6 +106,7 @@ func SetupAndEnsureIPTables(rules []IPTablesRule, resyncPeriod int) {
 	}
 
 	defer func() {
+		// 在程序执行失败的时候删掉所有规则
 		teardownIPTables(ipt, rules)
 	}()
 
@@ -140,6 +141,7 @@ func ensureIPTables(ipt IPTables, rules []IPTablesRule) error {
 		// if all the rules already exist, no need to do anything
 		return nil
 	}
+	// 如果有某个规则不存在，则先干掉其他规则，然后再新建所有规则
 	// Otherwise, teardown all the rules and set them up again
 	// We do this because the order of the rules is important
 	log.Info("Some iptables rules are missing; deleting and recreating rules")

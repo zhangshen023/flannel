@@ -131,6 +131,7 @@ func init() {
 	flannelFlags.IntVar(&opts.healthzPort, "healthz-port", 0, "the port for healthz server to listen(0 to disable)")
 	flannelFlags.IntVar(&opts.iptablesResyncSeconds, "iptables-resync", 5, "resync period for iptables rules, in seconds")
 	flannelFlags.BoolVar(&opts.iptablesForwardRules, "iptables-forward-rules", true, "add default accept rules to FORWARD chain in iptables")
+	// 网络配置文件
 	flannelFlags.StringVar(&opts.netConfPath, "net-config-path", "/etc/kube-flannel/net-conf.json", "path to the network configuration file")
 
 	// glog will log to tmp files by default. override so all entries
@@ -238,6 +239,7 @@ func main() {
 		}
 	}
 
+	// 子网管理器
 	sm, err := newSubnetManager()
 	if err != nil {
 		log.Error("Failed to create SubnetManager: ", err)
@@ -245,6 +247,7 @@ func main() {
 	}
 	log.Infof("Created subnet manager: %s", sm.Name())
 
+	// 注册 SIGINT and SIGTERM信号监听
 	// Register for SIGINT and SIGTERM
 	log.Info("Installing signal handlers")
 	sigs := make(chan os.Signal, 1)
@@ -269,6 +272,7 @@ func main() {
 		go mustRunHealthz()
 	}
 
+	// 获取网络配置如backend等
 	// Fetch the network config (i.e. what backend to use etc..).
 	config, err := getConfig(ctx, sm)
 	if err == errCanceled {
@@ -276,6 +280,7 @@ func main() {
 		os.Exit(0)
 	}
 
+	// 创建backend manager
 	// Create a backend manager then use it to create the backend and register the network with it.
 	bm := backend.NewManager(ctx, sm, extIface)
 	be, err := bm.GetBackend(config.BackendType)
@@ -295,6 +300,7 @@ func main() {
 	}
 
 	// Set up ipMasq if needed
+	// 随机snat
 	if opts.ipMasq {
 		if err = recycleIPTables(config.Network, bn.Lease()); err != nil {
 			log.Errorf("Failed to recycle IPTables rules, %v", err)
@@ -303,17 +309,20 @@ func main() {
 			os.Exit(1)
 		}
 		log.Infof("Setting up masking rules")
+		// 设置新的iptables规则
 		go network.SetupAndEnsureIPTables(network.MasqRules(config.Network, bn.Lease()), opts.iptablesResyncSeconds)
 	}
 
 	// Always enables forwarding rules. This is needed for Docker versions >1.13 (https://docs.docker.com/engine/userguide/networking/default_network/container-communication/#container-communication-between-hosts)
 	// In Docker 1.12 and earlier, the default FORWARD chain policy was ACCEPT.
 	// In Docker 1.13 and later, Docker sets the default policy of the FORWARD chain to DROP.
+	// 允许转发的规则
 	if opts.iptablesForwardRules {
 		log.Infof("Changing default FORWARD chain policy to ACCEPT")
 		go network.SetupAndEnsureIPTables(network.ForwardRules(config.Network.String()), opts.iptablesResyncSeconds)
 	}
 
+	// 子网配置写到子网文件去
 	if err := WriteSubnetFile(opts.subnetFile, config.Network, opts.ipMasq, bn); err != nil {
 		// Continue, even though it failed.
 		log.Warningf("Failed to write subnet file: %s", err)
@@ -347,6 +356,7 @@ func main() {
 	os.Exit(0)
 }
 
+// 删除以前iptables的匹配
 func recycleIPTables(nw ip.IP4Net, lease *subnet.Lease) error {
 	prevNetwork := ReadCIDRFromSubnetFile(opts.subnetFile, "FLANNEL_NETWORK")
 	prevSubnet := ReadCIDRFromSubnetFile(opts.subnetFile, "FLANNEL_SUBNET")

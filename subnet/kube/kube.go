@@ -52,6 +52,7 @@ const (
 	nodeControllerSyncTimeout = 10 * time.Minute
 )
 
+// k8s的子网管理器
 type kubeSubnetManager struct {
 	annotations    annotations
 	client         clientset.Interface
