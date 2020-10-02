@@ -118,6 +118,7 @@ func (nw *network) handleSubnetEvents(batch []subnet.Event) {
 		}
 		var directRoutingOK = false
 		if nw.dev.directRouting {
+			// 判断是否是直连（没有网关）
 			if dr, err := ip.DirectRouting(attrs.PublicIP.ToIP()); err != nil {
 				log.Error(err)
 			} else {
@@ -136,15 +137,18 @@ func (nw *network) handleSubnetEvents(batch []subnet.Event) {
 				}
 			} else {
 				log.V(2).Infof("adding subnet: %s PublicIP: %s VtepMAC: %s", sn, attrs.PublicIP, net.HardwareAddr(vxlanAttrs.VtepMAC))
+				// 给设备添加arp记录
 				if err := nw.dev.AddARP(neighbor{IP: sn.IP, MAC: net.HardwareAddr(vxlanAttrs.VtepMAC)}); err != nil {
 					log.Error("AddARP failed: ", err)
 					continue
 				}
 
+				// 给交换机添加fdb表
 				if err := nw.dev.AddFDB(neighbor{IP: attrs.PublicIP, MAC: net.HardwareAddr(vxlanAttrs.VtepMAC)}); err != nil {
 					log.Error("AddFDB failed: ", err)
 
 					// Try to clean up the ARP entry then continue
+					// 如果添加fdb表失败，则删除arp记录信息
 					if err := nw.dev.DelARP(neighbor{IP: event.Lease.Subnet.IP, MAC: net.HardwareAddr(vxlanAttrs.VtepMAC)}); err != nil {
 						log.Error("DelARP failed: ", err)
 					}
@@ -154,14 +158,17 @@ func (nw *network) handleSubnetEvents(batch []subnet.Event) {
 
 				// Set the route - the kernel would ARP for the Gw IP address if it hadn't already been set above so make sure
 				// this is done last.
+				// 最后添加一条路由记录
 				if err := netlink.RouteReplace(&vxlanRoute); err != nil {
 					log.Errorf("failed to add vxlanRoute (%s -> %s): %v", vxlanRoute.Dst, vxlanRoute.Gw, err)
 
 					// Try to clean up both the ARP and FDB entries then continue
+					// 失败回滚
 					if err := nw.dev.DelARP(neighbor{IP: event.Lease.Subnet.IP, MAC: net.HardwareAddr(vxlanAttrs.VtepMAC)}); err != nil {
 						log.Error("DelARP failed: ", err)
 					}
 
+					// 失败回滚
 					if err := nw.dev.DelFDB(neighbor{IP: event.Lease.Attrs.PublicIP, MAC: net.HardwareAddr(vxlanAttrs.VtepMAC)}); err != nil {
 						log.Error("DelFDB failed: ", err)
 					}
@@ -172,6 +179,7 @@ func (nw *network) handleSubnetEvents(batch []subnet.Event) {
 		case subnet.EventRemoved:
 			if directRoutingOK {
 				log.V(2).Infof("Removing direct route to subnet: %s PublicIP: %s", sn, attrs.PublicIP)
+				// 删除直连路由
 				if err := netlink.RouteDel(&directRoute); err != nil {
 					log.Errorf("Error deleting route to %v via %v: %v", sn, attrs.PublicIP, err)
 				}
