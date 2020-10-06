@@ -166,6 +166,7 @@ func usage() {
 }
 
 func newSubnetManager() (subnet.Manager, error) {
+	log.Infof("是否是k8s子网管理:%t", opts.kubeSubnetMgr)
 	if opts.kubeSubnetMgr {
 		return kube.NewSubnetManager(opts.kubeApiUrl, opts.kubeConfigFile, opts.kubeAnnotationPrefix, opts.netConfPath)
 	}
@@ -251,6 +252,7 @@ func main() {
 		log.Error("Failed to create SubnetManager: ", err)
 		os.Exit(1)
 	}
+	log.Infof("子网管理类型:%T", sm)
 	log.Infof("Created subnet manager: %s", sm.Name())
 
 	// 注册 SIGINT and SIGTERM信号监听
