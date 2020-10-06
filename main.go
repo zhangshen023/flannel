@@ -187,6 +187,7 @@ func newSubnetManager() (subnet.Manager, error) {
 }
 
 func main() {
+	log.Info("开始运行我的flannel~")
 	if opts.version {
 		fmt.Fprintln(os.Stderr, version.Version)
 		os.Exit(0)
