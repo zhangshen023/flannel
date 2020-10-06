@@ -15,7 +15,9 @@
 package vxlan
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/coreos/flannel/print_pretty"
 	"net"
 	"syscall"
 
@@ -68,6 +70,8 @@ func newVXLANDevice(devAttrs *vxlanDeviceAttrs) (*vxlanDevice, error) {
 
 func ensureLink(vxlan *netlink.Vxlan) (*netlink.Vxlan, error) {
 	err := netlink.LinkAdd(vxlan)
+	bytes, _ := json.Marshal(vxlan)
+	log.Infof("需要创建的veth:%s", string(bytes))
 	if err == syscall.EEXIST {
 		// it's ok if the device already exists as long as config is similar
 		log.V(1).Infof("VXLAN device already exists")
@@ -75,7 +79,7 @@ func ensureLink(vxlan *netlink.Vxlan) (*netlink.Vxlan, error) {
 		if err != nil {
 			return nil, err
 		}
-
+		log.Info("存在的veth为:%s", print_pretty.PrettyPrint(existing))
 		incompat := vxlanLinksIncompat(vxlan, existing)
 		if incompat == "" {
 			log.V(1).Infof("Returning existing device")
